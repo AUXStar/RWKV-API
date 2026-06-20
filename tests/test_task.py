@@ -1,185 +1,54 @@
-"""Task / AsyncTask 测试"""
+"""AsyncTask / Task 集成测试 —— 使用真实 RWKV-Server
+
+覆盖 wait、stop、delete、fork、continue_、as_template 等方法
+"""
 import pytest
-import httpx
-from rwkv_api import AsyncClient, AsyncTask
-
-
-@pytest.fixture
-def client():
-    return AsyncClient("http://localhost:8000")
+from rwkv_api import AsyncClient
+from rwkv_api._task import AsyncTask
+from rwkv_api.exceptions import TimeoutError as RWKVTimeoutError
 
 
 class TestAsyncTaskWait:
-    """AsyncTask.wait() 轮询测试"""
-
     @pytest.mark.asyncio
-    async def test_wait_finished(self, client, respx_mock):
-        respx_mock.post("http://localhost:8000/v1/tasks/tmp").mock(
-            return_value=httpx.Response(200, json={
-                "task_id": "TASK_wait",
-                "result": "",
-                "prefill_time": 0.1,
-                "gen_time": 0,
-                "speed": 0,
-                "finished": False,
-            })
-        )
-        respx_mock.get("http://localhost:8000/v1/tasks/TASK_wait/get_result").mock(
-            return_value=httpx.Response(200, json={
-                "task_id": "TASK_wait",
-                "result": "Done!",
-                "prefill_time": 0.1,
-                "gen_time": 0.5,
-                "speed": 50.0,
-                "finished": True,
-            })
-        )
-        task = await client.create("Hello", max_tokens=10)
-        result = await task.wait(timeout=5, poll_interval=0.1)
-        assert result.result == "Done!"
+    async def test_wait_finished(self, server_alive, async_client):
+        task = await async_client.create("Hello", max_tokens=5)
+        result = await task.wait(timeout=30)
         assert result.finished
+        assert isinstance(result.result, str)
 
     @pytest.mark.asyncio
-    async def test_wait_timeout(self, client, respx_mock):
-        respx_mock.post("http://localhost:8000/v1/tasks/tmp").mock(
-            return_value=httpx.Response(200, json={
-                "task_id": "TASK_timeout",
-                "result": "",
-                "prefill_time": 0.1,
-                "gen_time": 0,
-                "speed": 0,
-                "finished": False,
-            })
-        )
-        respx_mock.get("http://localhost:8000/v1/tasks/TASK_timeout/get_result").mock(
-            return_value=httpx.Response(200, json={
-                "task_id": "TASK_timeout",
-                "result": "",
-                "prefill_time": 0.1,
-                "gen_time": 0,
-                "speed": 0,
-                "finished": False,
-            })
-        )
-        task = await client.create("Hello", max_tokens=10)
-        from rwkv_api.exceptions import TimeoutError
-        with pytest.raises(TimeoutError):
-            await task.wait(timeout=0.2, poll_interval=0.1)
+    async def test_wait_timeout(self, server_alive, async_client):
+        task = await async_client.create("Hello", max_tokens=500)
+        with pytest.raises(RWKVTimeoutError):
+            await task.wait(timeout=0.5, poll_interval=0.1)
 
 
 class TestAsyncTaskOperations:
-    """AsyncTask 操作方法测试"""
-
     @pytest.mark.asyncio
-    async def test_task_stop(self, client, respx_mock):
-        respx_mock.post("http://localhost:8000/v1/tasks/tmp").mock(
-            return_value=httpx.Response(200, json={
-                "task_id": "TASK_stop",
-                "result": "",
-                "prefill_time": 0.1,
-                "gen_time": 0,
-                "speed": 0,
-                "finished": False,
-            })
-        )
-        respx_mock.post("http://localhost:8000/v1/tasks/TASK_stop/stop").mock(
-            return_value=httpx.Response(200)
-        )
-        task = await client.create("Hello")
+    async def test_stop_and_delete(self, server_alive, async_client):
+        task = await async_client.create("Hello", max_tokens=100)
         await task.stop()
-
-    @pytest.mark.asyncio
-    async def test_task_delete(self, client, respx_mock):
-        respx_mock.post("http://localhost:8000/v1/tasks/tmp").mock(
-            return_value=httpx.Response(200, json={
-                "task_id": "TASK_del",
-                "result": "",
-                "prefill_time": 0.1,
-                "gen_time": 0,
-                "speed": 0,
-                "finished": False,
-            })
-        )
-        respx_mock.post("http://localhost:8000/v1/tasks/TASK_del/delete?force=false").mock(
-            return_value=httpx.Response(200)
-        )
-        task = await client.create("Hello")
         await task.delete()
 
     @pytest.mark.asyncio
-    async def test_task_fork(self, client, respx_mock):
-        respx_mock.post("http://localhost:8000/v1/tasks/tmp").mock(
-            return_value=httpx.Response(200, json={
-                "task_id": "TASK_fork_src",
-                "result": "",
-                "prefill_time": 0.1,
-                "gen_time": 0,
-                "speed": 0,
-                "finished": False,
-            })
-        )
-        respx_mock.post("http://localhost:8000/v1/tasks/TASK_fork_src/fork").mock(
-            return_value=httpx.Response(200, json={
-                "task_id": "TASK_forked",
-                "result": "",
-                "prefill_time": 0,
-                "gen_time": 0,
-                "speed": 0,
-                "finished": False,
-            })
-        )
-        task = await client.create("Hello")
-        forked = await task.fork(max_tokens=10)
-        assert forked.task_id == "TASK_forked"
+    async def test_fork(self, server_alive, async_client):
+        task = await async_client.create("Hello", max_tokens=5)
+        await task.wait(timeout=30)
+        forked = await task.fork(prompt="World", max_tokens=5)
+        assert forked.task_id != task.task_id
 
     @pytest.mark.asyncio
-    async def test_task_continue(self, client, respx_mock):
-        respx_mock.post("http://localhost:8000/v1/tasks/tmp").mock(
-            return_value=httpx.Response(200, json={
-                "task_id": "TASK_cont",
-                "result": "",
-                "prefill_time": 0.1,
-                "gen_time": 0,
-                "speed": 0,
-                "finished": False,
-            })
-        )
-        respx_mock.post("http://localhost:8000/v1/tasks/TASK_cont/continue").mock(
-            return_value=httpx.Response(200, json={
-                "task_id": "TASK_cont",
-                "result": "",
-                "prefill_time": 0.1,
-                "gen_time": 0,
-                "speed": 0,
-                "finished": False,
-            })
-        )
-        task = await client.create("Hello")
-        continued = await task.continue_(max_tokens=10)
-        assert continued.task_id == "TASK_cont"
+    async def test_continue(self, server_alive, async_client):
+        task = await async_client.create("Hello", max_tokens=5)
+        await task.wait(timeout=30)
+        continued = await task.continue_(max_tokens=5)
+        assert continued.task_id == task.task_id
 
     @pytest.mark.asyncio
-    async def test_task_as_template(self, client, respx_mock):
-        respx_mock.post("http://localhost:8000/v1/tasks/tmp").mock(
-            return_value=httpx.Response(200, json={
-                "task_id": "TASK_tpl",
-                "result": "",
-                "prefill_time": 0.1,
-                "gen_time": 0,
-                "speed": 0,
-                "finished": False,
-            })
-        )
-        respx_mock.post("http://localhost:8000/v1/tasks/TASK_tpl/as_template").mock(
-            return_value=httpx.Response(200, json={
-                "task_id": "_TMPL_abc",
-                "result": "",
-                "prefill_time": 0,
-                "gen_time": 0,
-                "speed": 0,
-                "finished": False,
-            })
-        )
-        task = await client.create("Hello")
-        tpl = await task.as_template()
+    async def test_as_template(self, server_alive, async_client):
+        task = await async_client.create("Hello", max_tokens=5)
+        # fork 一个 task 到模板（as_template 要求 TASK_ 开头）
+        forked = await task.fork(prompt="Hello", max_tokens=5)
+        await forked.wait(timeout=30)
+        tpl = await forked.as_template()
         assert tpl.task_id.startswith("_TMPL_")

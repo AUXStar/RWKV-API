@@ -6,18 +6,20 @@
 
 from __future__ import annotations
 
-from enum import Enum
 from typing import Annotated
 
 from pydantic import BaseModel, Field
 
 
-class Status(str, Enum):
+from enum import IntEnum
+
+
+class Status(IntEnum):
     """任务状态枚举"""
-    PENDING = "PENDING"
-    RUNNING = "RUNNING"
-    FINISHED = "FINISHED"
-    STOPPED = "STOPPED"
+    PREFILL = 0
+    READY = 1
+    RUNNING = 2
+    FINISHED = 3
 
 class TaskCreate(BaseModel):
     """创建任务的请求体"""

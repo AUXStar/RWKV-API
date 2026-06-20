@@ -125,10 +125,11 @@ class Client:
             raise _Timeout(f"请求超时: {e}") from e
         raise_for_status(resp.status_code, resp.text)
 
-    def _stream_sse_sync(self, method: str, endpoint: str, body: dict[str, Any]) -> Iterator[str]:
+    def _stream_sse_sync(self, method: str, endpoint: str, body: dict[str, Any],
+                          params: dict[str, str] | None = None) -> Iterator[str]:
         """同步 SSE 流式请求，逐 chunk yield"""
         try:
-            with self._client.stream(method, endpoint, json=body) as resp:
+            with self._client.stream(method, endpoint, json=body, params=params) as resp:
                 raise_for_status(resp.status_code, "")
                 for line in resp.iter_lines():
                     line = line.strip()
@@ -341,13 +342,18 @@ class Client:
         )
         return Task(self, resp_model.task_id, response=resp_model)
 
-    def stream_task(self, task_id: str) -> Iterator[str]:
+    def stream_task(self, task_id: str, pos: int = 0) -> Iterator[str]:
         """订阅已创建任务的实时流式输出
 
-        如果任务已完成，一次性返回完整结果
-        如果任务还在运行，从当前位置开始流式
+        Args:
+            task_id: 任务 ID
+            pos: 从第几个 token 开始（默认 0，重连时传已读数量避免重复）
         """
-        yield from self._stream_sse_sync("GET", f"{_TASKS_PREFIX}/{task_id}/stream", {})
+        yield from self._stream_sse_sync(
+            "GET", f"{_TASKS_PREFIX}/{task_id}/stream",
+            {},
+            params={"pos": str(pos)} if pos else None,
+        )
 
     @staticmethod
     def _inject_gen_params(body: dict[str, Any], **params: Any) -> None:

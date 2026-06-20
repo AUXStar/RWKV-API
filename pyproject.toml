@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rwkv-api"
-version = "0.1.1"
+version = "v0.1.2"
 description = "RWKV-Server Task API 的 Python SDK，支持同步/异步双接口和流式 SSE 响应"
 readme = "README.md"
 license = { file = "LICENSE" }

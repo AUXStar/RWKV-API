@@ -147,7 +147,7 @@ SDK 提供两种流式方式：
 
 **注意**：
 - `create(stream=True)` 返回**生成器**，不是 `Task` 对象
-- `task.stream()` 支持多消费者同时连接，服务端广播到所有订阅者
+- `task.stream(pos=N)` 从第 N 个 token 开始（重连时传已读数量避免重复）
 - 如果任务已完成，`stream()` 一次性返回完整结果
 
 ## 异常处理
@@ -187,7 +187,7 @@ except RWKVServerError as e:
 | `create_persistent(prompt, ...)` | 创建持久化任务 |
 | `fim(prefix, suffix, ...)` | FIM 代码补全，`stream=True` 时返回生成器 |
 | `fim_stream(prefix, suffix, ...)` | **FIM 实时流式** |
-| `stream_task(task_id)` | **订阅已创建任务的流式输出** |
+| `stream_task(task_id, pos=0)` | **订阅已创建任务的流式输出** |
 | `list_tasks()` | 列出所有任务 |
 | `get_task_result(task_id)` | 获取任务结果 |
 | `get_task_status(task_id)` | 获取任务状态 |
@@ -207,7 +207,7 @@ except RWKVServerError as e:
 | `task.continue_()` | 继续生成 |
 | `task.as_template()` | 转为模板 |
 | `task.delete()` | 删除任务 |
-| `task.stream()` | **订阅此任务的实时流式输出** |
+| `task.stream(pos=0)` | **订阅此任务的实时流式输出** |
 
 ### 生成参数
 

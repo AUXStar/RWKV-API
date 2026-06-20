@@ -101,9 +101,13 @@ class AsyncTask:
         """转为模板"""
         return await self._client.as_template(self.task_id)
 
-    def stream(self) -> AsyncIterator[str]:
-        """订阅此任务的实时流式输出"""
-        return self._client.stream_task(self.task_id)
+    def stream(self, pos: int = 0) -> AsyncIterator[str]:
+        """订阅此任务的实时流式输出
+
+        Args:
+            pos: 从第几个 token 开始（默认 0）
+        """
+        return self._client.stream_task(self.task_id, pos=pos)
 
 
 class Task:

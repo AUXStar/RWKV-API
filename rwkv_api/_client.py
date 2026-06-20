@@ -90,10 +90,11 @@ class AsyncClient:
         method: str,
         endpoint: str,
         body: dict[str, Any],
+        params: dict[str, str] | None = None,
     ) -> AsyncIterator[str]:
         """通用 SSE 流式请求，逐 chunk yield"""
         try:
-            async with self._client.stream(method, endpoint, json=body) as resp:
+            async with self._client.stream(method, endpoint, json=body, params=params) as resp:
                 raise_for_status(resp.status_code, "")
                 async for line in resp.aiter_lines():
                     line = line.strip()
@@ -313,9 +314,15 @@ class AsyncClient:
         )
         return _task.AsyncTask(self, resp_model.task_id, response=resp_model)
 
-    async def stream_task(self, task_id: str) -> AsyncIterator[str]:
-        """订阅已创建任务的实时流式输出"""
-        async for chunk in self._stream_sse("GET", f"{_TASKS_PREFIX}/{task_id}/stream", {}):
+    async def stream_task(self, task_id: str, pos: int = 0) -> AsyncIterator[str]:
+        """订阅已创建任务的实时流式输出
+
+        Args:
+            task_id: 任务 ID
+            pos: 从第几个 token 开始（默认 0，重连时传已读数量避免重复）
+        """
+        params = {"pos": str(pos)} if pos else None
+        async for chunk in self._stream_sse("GET", f"{_TASKS_PREFIX}/{task_id}/stream", {}, params=params):
             yield chunk
 
     async def delete_task(self, task_id: str, *, force: bool = False) -> None:
