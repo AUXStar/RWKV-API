@@ -1,12 +1,12 @@
-"""RWKV API 异常体系。
+"""RWKV API 异常体系
 
 所有 SDK 抛出的异常都继承自 RWKVError，
-方便用户统一捕获或按类型细分处理。
+方便用户统一捕获或按类型细分处理
 """
 
 
 class RWKVError(Exception):
-    """RWKV API 基础异常。"""
+    """RWKV API 基础异常"""
 
     def __init__(self, message: str = "", *, status_code: int | None = None) -> None:
         self.status_code = status_code
@@ -14,7 +14,7 @@ class RWKVError(Exception):
 
 
 class RWKVValidationError(RWKVError):
-    """请求参数验证失败（HTTP 422）。"""
+    """请求参数验证失败（HTTP 422）"""
 
     def __init__(self, message: str = "请求参数验证失败", **kwargs) -> None:  # type: ignore[override]
         kwargs.setdefault("status_code", 422)
@@ -22,7 +22,7 @@ class RWKVValidationError(RWKVError):
 
 
 class RWKVServerError(RWKVError):
-    """服务端内部错误（HTTP 500）。"""
+    """服务端内部错误（HTTP 500）"""
 
     def __init__(self, message: str = "服务端内部错误", **kwargs) -> None:  # type: ignore[override]
         kwargs.setdefault("status_code", 500)
@@ -30,7 +30,7 @@ class RWKVServerError(RWKVError):
 
 
 class TaskNotFoundError(RWKVError):
-    """任务不存在（HTTP 404）。"""
+    """任务不存在（HTTP 404）"""
 
     def __init__(self, message: str = "任务不存在", **kwargs) -> None:  # type: ignore[override]
         kwargs.setdefault("status_code", 404)
@@ -38,21 +38,21 @@ class TaskNotFoundError(RWKVError):
 
 
 class TaskCancelledError(RWKVError):
-    """任务被取消或停止。"""
+    """任务被取消或停止"""
 
     def __init__(self, message: str = "任务已被取消") -> None:
         super().__init__(message)
 
 
 class TimeoutError(RWKVError):
-    """请求超时。"""
+    """请求超时"""
 
     def __init__(self, message: str = "请求超时") -> None:
         super().__init__(message)
 
 
 class ConnectionError(RWKVError):
-    """连接失败。"""
+    """连接失败"""
 
     def __init__(self, message: str = "连接失败") -> None:
         super().__init__(message)
@@ -67,14 +67,14 @@ _STATUS_CODE_MAP: dict[int, type[RWKVError]] = {
 
 
 def raise_for_status(status_code: int, body: str | None = None) -> None:
-    """根据 HTTP 状态码抛出对应的异常。
+    """根据 HTTP 状态码抛出对应的异常
 
     Args:
-        status_code: HTTP 响应状态码。
-        body: 可选的响应体文本，用于丰富错误信息。
+        status_code: HTTP 响应状态码
+        body: 可选的响应体文本，用于丰富错误信息
 
     Raises:
-        RWKVError: 对应状态码的异常。
+        RWKVError: 对应状态码的异常
     """
     if 200 <= status_code < 300:
         return

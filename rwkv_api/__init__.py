@@ -1,6 +1,6 @@
-"""rwkv_api —— RWKV-Server Task API 的 Python SDK。
+"""rwkv_api —— RWKV-Server Task API 的 Python SDK
 
-提供同步和异步两种接口，支持流式 SSE 响应和完整的任务生命周期管理。
+提供同步和异步两种接口，支持流式 SSE 响应和完整的任务生命周期管理
 
 快速开始（异步）::
 

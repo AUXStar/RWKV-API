@@ -1,7 +1,7 @@
-"""RWKV API 数据模型（Pydantic v2）。
+"""RWKV API 数据模型（Pydantic v2）
 
 定义所有请求 / 响应的序列化结构，
-与 RWKV-Server Task API 的 JSON Schema 一一对应。
+与 RWKV-Server Task API 的 JSON Schema 一一对应
 """
 
 from __future__ import annotations
@@ -13,14 +13,14 @@ from pydantic import BaseModel, Field
 
 
 class Status(str, Enum):
-    """任务状态枚举。"""
+    """任务状态枚举"""
     PENDING = "PENDING"
     RUNNING = "RUNNING"
     FINISHED = "FINISHED"
     STOPPED = "STOPPED"
 
 class TaskCreate(BaseModel):
-    """创建任务的请求体。"""
+    """创建任务的请求体"""
     prompt: str | list[int]
     max_tokens: int = Field(default=4096, ge=0, le=40960)
     temperature: float = Field(default=1.0, ge=0, le=2)
@@ -34,10 +34,10 @@ class TaskCreate(BaseModel):
 
 
 class TaskUpdate(BaseModel):
-    """更新 / fork / 继续任务的请求体。
+    """更新 / fork / 继续任务的请求体
 
     所有字段均为可选（除 stream 默认 False），
-    未提供的字段将沿用原任务的值。
+    未提供的字段将沿用原任务的值
     """
     prompt: str | list[int] | None = None
     max_tokens: int | None = Field(default=None, ge=0, le=40960)
@@ -52,7 +52,7 @@ class TaskUpdate(BaseModel):
 
 
 class FIMRequest(BaseModel):
-    """Fill In Middle 请求体。"""
+    """Fill In Middle 请求体"""
     prefix: str
     suffix: str = ""
     max_tokens: int = Field(default=4096, ge=0, le=40960)
@@ -67,7 +67,7 @@ class FIMRequest(BaseModel):
 
 
 class TaskResponseModel(BaseModel):
-    """任务响应模型（非流式）。"""
+    """任务响应模型（非流式）"""
     task_id: str
     result: str = ""
     prefill_time: float = 0.0
@@ -77,7 +77,7 @@ class TaskResponseModel(BaseModel):
 
 
 class TaskInfo(BaseModel):
-    """任务状态信息。"""
+    """任务状态信息"""
     task_id: str
     generated_buf: int = 0
     status: Status = Status.FINISHED

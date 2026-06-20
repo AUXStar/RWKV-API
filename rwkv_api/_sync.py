@@ -1,6 +1,6 @@
-"""Client —— RWKV-Server Task API 的同步客户端。
+"""Client —— RWKV-Server Task API 的同步客户端
 
-完全基于同步 httpx.Client，无需 asyncio。
+完全基于同步 httpx.Client，无需 asyncio
 """
 
 from __future__ import annotations
@@ -28,13 +28,13 @@ _GEN_PARAMS = frozenset({
 
 
 class Client:
-    """RWKV-Server Task API 同步客户端。
+    """RWKV-Server Task API 同步客户端
 
     Args:
-        base_url: 服务地址，如 ``http://localhost:8000``。
-        timeout: HTTP 请求超时（秒）。
-        headers: 额外的 HTTP 请求头。
-        httpx_client: 自定义的 httpx.Client 实例（高级用法）。
+        base_url: 服务地址，如 ``http://localhost:8000``
+        timeout: HTTP 请求超时（秒）
+        headers: 额外的 HTTP 请求头
+        httpx_client: 自定义的 httpx.Client 实例（高级用法）
 
     Usage::
 
@@ -73,7 +73,7 @@ class Client:
         self.close()
 
     def close(self) -> None:
-        """关闭底层 HTTP 连接池。"""
+        """关闭底层 HTTP 连接池"""
         self._client.close()
 
     # ===================================================================
@@ -83,7 +83,7 @@ class Client:
     def _post_json(
         self, path: str, body: dict[str, Any], *, response_model: type[Any] | None = None,
     ) -> Any:
-        """发送 POST 请求，解析 JSON 响应。"""
+        """发送 POST 请求，解析 JSON 响应"""
         try:
             resp = self._client.post(path, json=body)
         except httpx.ConnectError as e:
@@ -99,7 +99,7 @@ class Client:
     def _get_json(
         self, path: str, *, response_model: type[Any] | None = None,
     ) -> Any:
-        """发送 GET 请求，解析 JSON 响应。"""
+        """发送 GET 请求，解析 JSON 响应"""
         try:
             resp = self._client.get(path)
         except httpx.ConnectError as e:
@@ -115,7 +115,7 @@ class Client:
     def _post_no_content(
         self, path: str, body: dict[str, Any], *, params: dict[str, str] | None = None,
     ) -> None:
-        """发送 POST 请求，不解析响应体。"""
+        """发送 POST 请求，不解析响应体"""
         try:
             resp = self._client.post(path, json=body, params=params)
         except httpx.ConnectError as e:
@@ -126,7 +126,7 @@ class Client:
         raise_for_status(resp.status_code, resp.text)
 
     def _stream_sse_sync(self, method: str, endpoint: str, body: dict[str, Any]) -> Iterator[str]:
-        """同步 SSE 流式请求，逐 chunk yield。"""
+        """同步 SSE 流式请求，逐 chunk yield"""
         try:
             with self._client.stream(method, endpoint, json=body) as resp:
                 raise_for_status(resp.status_code, "")
@@ -169,12 +169,12 @@ class Client:
         seed: int | None = None,
         persistent: bool = False,
     ) -> Iterator[str]:
-        """创建任务并实时流式返回生成内容（同步）。"""
+        """创建任务并实时流式返回生成内容（同步）"""
         body: dict[str, Any] = {"prompt": prompt, "stream": True}
-        for key in _GEN_PARAMS:
-            value = locals()[key]
-            if value is not None:
-                body[key] = value
+        self._inject_gen_params(body, max_tokens=max_tokens, temperature=temperature,
+                                 top_k=top_k, top_p=top_p, presence_penalty=presence_penalty,
+                                 repetition_penalty=repetition_penalty, penalty_decay=penalty_decay,
+                                 seed=seed)
         endpoint = f"{_TASKS_PREFIX}/create" if persistent else f"{_TASKS_PREFIX}/tmp"
         yield from self._stream_sse_sync("POST", endpoint, body)
 
@@ -192,12 +192,12 @@ class Client:
         penalty_decay: float | None = None,
         seed: int | None = None,
     ) -> Iterator[str]:
-        """FIM 实时流式返回生成内容（同步）。"""
+        """FIM 实时流式返回生成内容（同步）"""
         body: dict[str, Any] = {"prefix": prefix, "suffix": suffix, "stream": True}
-        for key in _GEN_PARAMS:
-            value = locals()[key]
-            if value is not None:
-                body[key] = value
+        self._inject_gen_params(body, max_tokens=max_tokens, temperature=temperature,
+                                 top_k=top_k, top_p=top_p, presence_penalty=presence_penalty,
+                                 repetition_penalty=repetition_penalty, penalty_decay=penalty_decay,
+                                 seed=seed)
         yield from self._stream_sse_sync("POST", f"{_TASKS_PREFIX}/fim", body)
 
     # ===================================================================
@@ -219,10 +219,10 @@ class Client:
         seed: int | None = None,
         persistent: bool = False,
     ) -> Task | Iterator[str]:
-        """创建任务（同步版本）。
+        """创建任务（同步版本）
 
         stream=True 时返回 Iterator[str]（实时流式）；
-        stream=False 时返回 Task 对象。
+        stream=False 时返回 Task 对象
         """
         if stream is True:
             return self.create_stream(
@@ -243,7 +243,7 @@ class Client:
     def create_tmp(
         self, prompt: str | list[int] | None = None, /, **kwargs: Any
     ) -> Task | Iterator[str]:
-        """创建临时任务。"""
+        """创建临时任务"""
         if prompt is not None:
             kwargs["prompt"] = prompt
         return self.create(**kwargs, persistent=False)
@@ -251,7 +251,7 @@ class Client:
     def create_persistent(
         self, prompt: str | list[int] | None = None, /, **kwargs: Any
     ) -> Task | Iterator[str]:
-        """创建持久化任务。"""
+        """创建持久化任务"""
         if prompt is not None:
             kwargs["prompt"] = prompt
         return self.create(**kwargs, persistent=True)
@@ -271,10 +271,10 @@ class Client:
         stream: bool = False,
         seed: int | None = None,
     ) -> Task | Iterator[str]:
-        """Fill In Middle（同步版本）。
+        """Fill In Middle（同步版本）
 
         stream=True 时返回 Iterator[str]（实时流式）；
-        stream=False 时返回 Task 对象。
+        stream=False 时返回 Task 对象
         """
         if stream is True:
             return self.fim_stream(
@@ -296,30 +296,30 @@ class Client:
     # ===================================================================
 
     def list_tasks(self) -> dict[str, Any]:
-        """列出所有任务。"""
+        """列出所有任务"""
         return self._get_json(f"{_TASKS_PREFIX}/list")
 
     def get_task_result(self, task_id: str) -> TaskResponseModel:
-        """获取任务结果。"""
+        """获取任务结果"""
         return self._get_json(f"{_TASKS_PREFIX}/{task_id}/get_result", response_model=TaskResponseModel)
 
     def get_task_status(self, task_id: str) -> TaskInfo:
-        """获取任务状态。"""
+        """获取任务状态"""
         return self._get_json(f"{_TASKS_PREFIX}/{task_id}/status", response_model=TaskInfo)
 
     def stop_task(self, task_id: str) -> None:
-        """停止任务。"""
+        """停止任务"""
         self._post_no_content(f"{_TASKS_PREFIX}/{task_id}/stop", {})
 
     def delete_task(self, task_id: str, *, force: bool = False) -> None:
-        """删除任务。"""
+        """删除任务"""
         self._post_no_content(
             f"{_TASKS_PREFIX}/{task_id}/delete", {},
             params={"force": str(force).lower()},
         )
 
     def fork_task(self, task_id: str, **kwargs: Any) -> Task:
-        """Fork 任务。"""
+        """Fork 任务"""
         body = self._build_update_body(kwargs)
         resp_model = self._post_json(
             f"{_TASKS_PREFIX}/{task_id}/fork", body, response_model=TaskResponseModel,
@@ -327,7 +327,7 @@ class Client:
         return Task(self, resp_model.task_id, response=resp_model)
 
     def continue_task(self, task_id: str, **kwargs: Any) -> Task:
-        """继续任务。"""
+        """继续任务"""
         body = self._build_update_body(kwargs)
         resp_model = self._post_json(
             f"{_TASKS_PREFIX}/{task_id}/continue", body, response_model=TaskResponseModel,
@@ -335,23 +335,30 @@ class Client:
         return Task(self, resp_model.task_id, response=resp_model)
 
     def as_template(self, task_id: str) -> Task:
-        """转为模板。"""
+        """转为模板"""
         resp_model = self._post_json(
             f"{_TASKS_PREFIX}/{task_id}/as_template", {}, response_model=TaskResponseModel,
         )
         return Task(self, resp_model.task_id, response=resp_model)
 
     def stream_task(self, task_id: str) -> Iterator[str]:
-        """订阅已创建任务的实时流式输出。
+        """订阅已创建任务的实时流式输出
 
-        如果任务已完成，一次性返回完整结果。
-        如果任务还在运行，从当前位置开始流式。
+        如果任务已完成，一次性返回完整结果
+        如果任务还在运行，从当前位置开始流式
         """
         yield from self._stream_sse_sync("GET", f"{_TASKS_PREFIX}/{task_id}/stream", {})
 
     @staticmethod
+    def _inject_gen_params(body: dict[str, Any], **params: Any) -> None:
+        """将非 None 的生成参数注入请求体"""
+        for key, value in params.items():
+            if value is not None:
+                body[key] = value
+
+    @staticmethod
     def _build_update_body(overrides: dict[str, Any]) -> dict[str, Any]:
-        """从关键字参数构建更新请求体。"""
+        """从关键字参数构建更新请求体"""
         body: dict[str, Any] = {"stream": False}
         for key in ("prompt", *_GEN_PARAMS, "stream"):
             if key in overrides:
